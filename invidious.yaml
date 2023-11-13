@@ -1,0 +1,117 @@
+# INVIDIOUS DATABASE DEPLOYMENT
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: invidious-db-deployment
+  labels:
+    app: invidious-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: invidious-db
+  template:
+    metadata:
+      labels:
+        app: invidious-db
+    spec:
+      containers:
+      - name: invidious-db
+        image: postgres:13
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_PASSWORD
+          value: kemal
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: postgres-data
+        - mountPath: /config/sql
+          name: config-sql
+        - mountPath: /docker-entrypoint-initdb.d/init-invidious-db.sh
+          name: entry-point
+      volumes:
+      - name: postgres-data
+        hostPath:
+          path: /home/docker/data/invidious/db
+          type: Directory
+      - name: config-sql
+        hostPath:
+          path: /home/docker/data/invidious/config/sql
+          type: Directory
+      - name: entry-point
+        hostPath:
+          path: /home/docker/data/invidious/docker/init-invidious-db.sh
+          type: File
+---
+# INVIDIOUS DEPLOYMENT
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: invidious-deployment
+  labels:
+    app: invidious
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: invidious
+  template:
+    metadata:
+      labels:
+        app: invidious
+    spec:
+      containers:
+      - name: invidious
+        image: quay.io/invidious/invidious
+        ports:
+        - containerPort: 3000
+        env:
+        - name: INVIDIOUS_CONFIG
+          value: |
+            db:
+              dbname: postgres
+              user: postgres
+              password: kemal
+              host: invidious-db-service
+              port: 5432
+            default_user_preferences:
+              feed_menu: ["Trending", "Subscriptions", "Playlists"]
+              default_home: Trending
+              region: IT
+              locale: it-IT
+            check_tables: true
+            hmac_key: "abcabccabab"
+            popular_enabled: false
+            captcha_enabled: false
+            domain: tube.gian.im
+            https_only: true
+            external_port: 443
+---
+# INVIDIOUS SERVICE
+apiVersion: v1
+kind: Service
+metadata:
+  name: invidious-service
+spec:
+  type: NodePort
+  selector:
+    app: invidious
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+      nodePort: 30005
+---
+# INVIDIOUS DATABASE SERVICE
+apiVersion: v1
+kind: Service
+metadata:
+  name: invidious-db-service
+spec:
+  selector:
+    app: invidious-db
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432

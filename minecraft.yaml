@@ -1,0 +1,59 @@
+# MINECRAFT DEPLOYMENT
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minecraft-deployment
+  labels:
+    app: minecraft
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minecraft
+  template:
+    metadata:
+      labels:
+        app: minecraft
+    spec:
+      containers:
+      - name: minecraft
+        image: marctv/minecraft-papermc-server:latest
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        ports:
+        - containerPort: 25565
+        env:
+        - name: MEMORYSIZE
+          value: "2G"
+        - name: TZ
+          value: "Europe/Rome"
+        stdin: true 
+        tty: true 
+      volumes:
+      - name: data
+        hostPath:
+          path: /home/docker/data/minecraft
+          type: Directory
+---
+# MINECRAFT SERVICE
+apiVersion: v1
+kind: Service
+metadata:
+  name: minecraft-service
+spec:
+  type: NodePort
+  selector:
+    app: minecraft
+  ports:
+  - name: server
+    protocol: TCP
+    port: 25565
+    targetPort: 25565
+    nodePort: 30003
+  - name: dynmap
+    protocol: TCP
+    port: 8123
+    targetPort: 8123
+    nodePort: 30004
+

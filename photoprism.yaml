@@ -1,0 +1,168 @@
+# NEXTCLOUD DEPLOYMENT
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: photoprism-deployment
+  labels:
+    app: photoprism
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: photoprism
+  template:
+    metadata:
+      labels:
+        app: photoprism
+    spec:
+      containers:
+      - name: photoprism
+        image: photoprism/photoprism:latest
+        workingDir: /workdir
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /photoprism/originals
+          name: originals
+        - mountPath: /photoprism/storage
+          name: storage
+        ports:
+        - containerPort: 2342
+        env:
+        - name: PHOTOPRISM_DATABASE_NAME
+          value: "photoprism"
+        - name: PHOTOPRISM_DATABASE_USER
+          value: "photoprism"
+        - name: PHOTOPRISM_DATABASE_PASSWORD
+          value: "photoprism"
+        - name: PHOTOPRISM_ADMIN_USER
+          valueFrom:
+            secretKeyRef:
+              name: photoprism-secret
+              key: user
+        - name: PHOTOPRISM_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: photoprism-secret
+              key: password
+        - name: PHOTOPRISM_AUTH_MODE
+          value: "password"
+        - name: PHOTOPRISM_SITE_URL
+          value: "https://photos.gian.im"
+        - name: PHOTOPRISM_DATABASE_DRIVER
+          value: "mysql"
+        - name: PHOTOPRISM_DATABASE_SERVER
+          value: "photoprism-db-service"
+      volumes:
+      - name: originals
+        hostPath:
+          path: /home/docker/data/nextcloud/data/gian/files/Photos
+          type: Directory
+      - name: storage
+        hostPath:
+          path: /home/docker/data/photoprism/storage
+          type: Directory
+---
+# PHOTOPRISM SERVICE
+apiVersion: v1
+kind: Service
+metadata:
+  name: photoprism-service
+spec:
+  type: NodePort
+  selector:
+    app: photoprism
+  ports:
+    - protocol: TCP
+      port: 2342
+      targetPort: 2342
+      nodePort: 30008
+---
+# PHOTOPRISM DATABASE DEPLOYMENT
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: photoprism-db-deployment
+  labels:
+    app: photoprism-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: photoprism-db
+  template:
+    metadata:
+      labels:
+        app: photoprism-db
+    spec:
+      containers:
+      - name: photoprism-db
+        image: mariadb:latest
+        volumeMounts:
+        - mountPath: /var/lib/mysql
+          name: database
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: photoprism-db-secret
+              key: user
+        - name: MYSQL_DATABASE
+          valueFrom:
+            secretKeyRef:
+              name: photoprism-db-secret
+              key: database
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: photoprism-db-secret
+              key: password
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: photoprism-db-secret
+              key: root-password
+      volumes:
+      - name: database
+        hostPath:
+          path: /home/docker/data/photoprism/db
+          type: Directory
+---
+# PHOTOPRISM DATABASE SERVICE
+apiVersion: v1
+kind: Service
+metadata:
+  name: photoprism-db-service
+spec:
+  selector:
+    app: photoprism-db
+  ports:
+    - protocol: TCP
+      port: 3306
+      targetPort: 3306
+---
+# PHOTOPRISM DATABASE SECRET
+apiVersion: v1
+kind: Secret
+metadata:
+  name: photoprism-db-secret
+type: Opaque
+data:
+  user: cGhvdG9wcmlzbQ== #photoprism in base64 - CHANGE THIS
+  password: cGhvdG9wcmlzbQ== #photoprism in base64 - CHANGE THIS
+  database: cGhvdG9wcmlzbQ== #photoprism in base64 - CHANGE THIS
+  root-password: cGhvdG9wcmlzbQ== #photoprism in base64 - CHANGE THIS
+---
+# PHOTOPRISM SECRET
+apiVersion: v1
+kind: Secret
+metadata:
+  name: photoprism-secret
+type: Opaque
+data:
+  user: dXNlcg== #user in base64 - CHANGE THIS
+  password: cGFzc3dvcmQ= #password in base64 - CHANGE THIS
+
+

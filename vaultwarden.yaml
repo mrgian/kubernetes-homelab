@@ -1,0 +1,66 @@
+# VAULTWADREN DEPLOYMENT
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vaultwarden-deployment
+  labels:
+    app: vaultwarden
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vaultwarden
+  template:
+    metadata:
+      labels:
+        app: vaultwarden
+    spec:
+      containers:
+      - name: vaultwarden
+        image: vaultwarden/server:latest
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        ports:
+        - containerPort: 80
+        env:
+        - name: YUBICO_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: vaultwarden-secret
+              key: yubikey-client-id
+        - name: YUBICO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: vaultwarden-secret
+              key: yubikey-secret-key
+      volumes:
+      - name: data
+        hostPath:
+          path: /home/docker/data/vaultwarden
+          type: Directory
+---
+# VAULTWARDEN SERVICE
+apiVersion: v1
+kind: Service
+metadata:
+  name: vaultwarden-service
+spec:
+  type: NodePort
+  selector:
+    app: vaultwarden
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      nodePort: 30002
+---
+# VAULTWARDEN SECRET
+apiVersion: v1
+kind: Secret
+metadata:
+  name: vaultwarden-secret
+type: Opaque
+data:
+  yubikey-client-id: <your client-id in base64>
+  yubikey-secret-key: <your secret-key in base64>

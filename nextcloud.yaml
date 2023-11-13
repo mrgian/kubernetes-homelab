@@ -1,0 +1,160 @@
+# NEXTCLOUD DEPLOYMENT
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nextcloud-deployment
+  labels:
+    app: nextcloud
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nextcloud
+  template:
+    metadata:
+      labels:
+        app: nextcloud
+    spec:
+      containers:
+      - name: nextcloud
+        image: nextcloud:latest
+        volumeMounts:
+        - mountPath: /var/www/html/apps
+          name: apps
+        - mountPath: /var/www/html/custom_apps
+          name: custom-apps
+        - mountPath: /var/www/html/config
+          name: config
+        - mountPath: /var/www/html/data
+          name: data
+        ports:
+        - containerPort: 80
+        env:
+        - name: MYSQL_DATABASE
+          valueFrom:
+            secretKeyRef:
+              name: nextcloud-db-secret
+              key: database
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: nextcloud-db-secret
+              key: user
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: nextcloud-db-secret
+              key: password
+        - name: MYSQL_HOST
+          value: "nextcloud-db-service"
+      volumes:
+      - name: apps
+        hostPath:
+          path: /home/docker/data/nextcloud/apps
+          type: Directory
+      - name: custom-apps
+        hostPath:
+          path: /home/docker/data/nextcloud/custom_apps
+          type: Directory
+      - name: config
+        hostPath:
+          path: /home/docker/data/nextcloud/config
+          type: Directory
+      - name: data
+        hostPath:
+          path: /home/docker/data/nextcloud/data
+          type: Directory
+---
+# NEXTCLOUD SERVICE
+apiVersion: v1
+kind: Service
+metadata:
+  name: nextcloud-service
+spec:
+  type: NodePort
+  selector:
+    app: nextcloud
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      nodePort: 30001
+---
+# NEXTCLOUD DATABASE DEPLOYMENT
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nextcloud-db-deployment
+  labels:
+    app: nextcloud-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nextcloud-db
+  template:
+    metadata:
+      labels:
+        app: nextcloud-db
+    spec:
+      containers:
+      - name: nextcloud-db
+        image: mariadb:latest
+        volumeMounts:
+        - mountPath: /var/lib/mysql
+          name: database
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: nextcloud-db-secret
+              key: user
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: nextcloud-db-secret
+              key: password
+        - name: MYSQL_DATABASE
+          valueFrom:
+            secretKeyRef:
+              name: nextcloud-db-secret
+              key: database
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: nextcloud-db-secret
+              key: root-password
+      volumes:
+      - name: database
+        hostPath:
+          path: /home/docker/data/nextcloud/db
+          type: Directory
+---
+# NEXTCLOUD DATABASE SERVICE
+apiVersion: v1
+kind: Service
+metadata:
+  name: nextcloud-db-service
+spec:
+  selector:
+    app: nextcloud-db
+  ports:
+    - protocol: TCP
+      port: 3306
+      targetPort: 3306
+---
+# NEXTCLOUD DATABASE SECRET
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nextcloud-db-secret
+type: Opaque
+data:
+  user: bmV4dGNsb3Vk #nextcloud in base64 - CHANGE THIS
+  password: bmV4dGNsb3Vk #nextcloud in base64 - CHANGE THIS
+  database: bmV4dGNsb3Vk #nextcloud in base64 - CHANGE THIS
+  root-password: bmV4dGNsb3Vk #nextcloud in base64 - CHANGE THIS
+
+
