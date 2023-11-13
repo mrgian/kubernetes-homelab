@@ -22,7 +22,7 @@ Persistent directories are mounted to */home/docker/data* in the Minikube node. 
 - **Minecraft** (multiplayer server) on port *30003*
 - **DynMap** (live map for Minecraft) on port *30004*
 - **Invidious** (YouTube alternative front-end) on port *30005*
-- **Kubernets Dashboard** (web interface for k8s) on port 30006*
+- **Kubernets Dashboard** (web interface for k8s) on port *30006*
 - **Home Assistant** (smart home automation) on port *30007*
 - **Photoprism** (photo gallery) on port *30008*
 - **Pi-Hole** (DNS server) on port *30009*
